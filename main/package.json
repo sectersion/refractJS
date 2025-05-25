@@ -1,1 +1,25 @@
-
+{
+  "name": "refractjs",
+  "version": "1.0.0",
+  "description": "Open-Source Proxy System with Smart Routing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo What?"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sectersion/refractJS.git"
+  },
+  "keywords": [
+    "proxy",
+    "open-source",
+    "web",
+    "censorship"
+  ],
+  "author": "SecterSion and Kayden",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/sectersion/refractJS/issues"
+  },
+  "homepage": "https://github.com/sectersion/refractJS#readme"
+}
