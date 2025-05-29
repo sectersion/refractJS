@@ -1,0 +1,27 @@
+{
+  "name": "refractjs",
+  "version": "1.0.0",
+  "description": "Open-Source Proxy System with Smart Routing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sectersion/refractJS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/sectersion/refractJS/issues"
+  },
+  "homepage": "https://github.com/sectersion/refractJS#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "path": "^0.12.7",
+    "url": "^0.11.4"
+  }
+}
