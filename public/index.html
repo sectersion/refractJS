@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>refractJS Data Input</title>
+</head>
+<body>
+    <h1>Submit Data</h1>
+    <form id="dataForm">
+        <label>
+            Value: <input type="text" name="value" required>
+        </label><br>
+        <button type="submit">Submit</button>
+    </form>
+    <p id="status"></p>
+    <script>
+        document.getElementById('dataForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                value: formData.get('value')
+            };
+            fetch('/api/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(res => {
+                if (res.ok) {
+                    document.getElementById('status').textContent = "Data submitted!";
+                    e.target.reset();
+                } else {
+                    document.getElementById('status').textContent = "Error saving data.";
+                }
+            });
+        });
+    </script>
+</body>
+</html>
