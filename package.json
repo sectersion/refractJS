@@ -1,27 +1,29 @@
 {
-  "name": "refractjs",
+  "name": "refractjs_registry",
   "version": "1.0.0",
   "description": "Open-Source Proxy System with Smart Routing",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "test": "echo What?"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sectersion/refractJS.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
+  "keywords": [
+    "proxy",
+    "open-source",
+    "web",
+    "censorship"
+  ],
+  "author": "SecterSion and Kayden",
+  "license": "",
   "bugs": {
     "url": "https://github.com/sectersion/refractJS/issues"
   },
   "homepage": "https://github.com/sectersion/refractJS#readme",
   "dependencies": {
     "express": "^5.1.0",
-    "path": "^0.12.7",
-    "url": "^0.11.4"
+    "mysql2": "^3.14.1"
   }
 }

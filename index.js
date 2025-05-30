@@ -1,55 +1,101 @@
-import express from 'express';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import fs from 'fs';
+// Copyright (C) RefractJS Team - All Rights Reserved
+// Unauthorized copying of this file, via any medium is strictly prohibited
+// Proprietary and confidential
+// Written by the RefractJS Team
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const express = require('express');
 const app = express();
+const readline = require('node:readline');
+const mysql = require('mysql2/promise');
+const port = 3000;
+//possible need for running commands later
+const { exec } = require('child_process');
 
-app.use(express.static(join(__dirname, 'public')));
-app.use(express.json());
+//MySQL data
+let sql_host = 'localhost';
+let sql_user = 'registry_user';
+let sql_password = 'password';
+let sql_database = 'registry';
 
-app.get('/', (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'index.html'));
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
 });
 
-app.get('/api/data', (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'data.json'));
-});
+//START PROGRAM
+main();
 
-app.post('/api/data', (req, res) => {
-    const newEntry = {
-        value: req.body.value,
-        timestamp: new Date().toISOString()
-    };
-    const dataPath = join(__dirname, 'public', 'data.json');
-    fs.readFile(dataPath, 'utf8', (err, fileData) => {
-        let data = [];
-        if (!err && fileData) {
-            try {
-                data = JSON.parse(fileData);
-            } catch (e) {
-                data = [];
-            }
+function main() {
+    console.log("RefractJS Registry Server");
+    console.log("This software is proprietary, confidential, and not meant to be used by anyone other than official RefractJS team members!");
+    console.log();
+    console.log("Choose a start up option:");
+    console.log("1 - Start regularly (assumes everything is set up and configured properly)");
+    console.log("2 - Full initialization (new setup)");
+    //will allow for easy setup on other instances
+    rl.question(`> `, async actionInput => {
+        if (actionInput == "1") {
+            await initSequence();
+        } else if (actionInput == "2") {
+            await fullSetup();
+        } else {
+            console.log("Incorrect input. Please restart the program.");
+            process.exit();
         }
-        data.push(newEntry);
-        fs.writeFile(dataPath, JSON.stringify(data, null, 2), err => {
-            if (err) {
-                res.status(500).json({ error: 'Failed to save data.' });
-            } else {
-                res.status(200).json({ success: true });
-            }
-        });
+        rl.close();
     });
+}
+
+//REQUESTS SHOULD NOT BE MADE TO ROOT
+app.get('/', (req, res) => {
+    res.type('json');
+    res.send({"res_type":"error", "lethal":"false", "code":"1", "message":"Incorrect API request to root URL. This is an internal server error that should be reported on the RefractJS GitHub."});
 });
 
-app.get('/view', (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'view.html'));
-})
-
-const PORT = process.env.PORT || 3131;
-
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+//ACCESS NODE REGISTRATION
+app.get('/register_node/access_node', (req, res) => {
+    res.type('json');
+    res.send({"temporary":"You have reached the point for registering an Access Node. This API is not ready."});
 });
+
+//UPLOAD NODE REGISTRATION
+app.get('/register_node/upload_node', (req, res) => {
+    res.type('json');
+    res.send({"temporary":"You have reached the point for registering an Upload Node. This API is not ready."});
+});
+
+//currently the init sequence doesn't do anything but start the web server
+function initSequence() {
+    console.log("");
+    app.listen(port, async () => {
+        console.log(`Server listening at http://localhost:${port}`);
+    });
+    console.log("This option assumes that the MySQL database has been configured properly and is running! This server is OPEN FOR REQUESTS.");
+}
+
+async function fullSetup() {
+    try {
+        console.log(`Setup assumes that a MySQL DB called "${sql_database}" at "${sql_host}" exists.`);
+        const db_connection = await mysql.createConnection({
+            host: sql_host,
+            user: sql_user,
+            password: sql_password,
+            database: sql_database
+        });
+
+        console.log("Creating IPs table...");
+        //try to create the IPs table
+        const [rows, fields] = await db_connection.execute(`CREATE TABLE IPs (Something int);`);
+        db_connection.end();
+        console.log("Table created successfully.");
+        console.log("");
+
+        app.listen(port, async () => {
+            console.log(`Server listening at http://localhost:${port}`);
+        });
+        console.log("The Registry Server has been setup successfully. This server is OPEN FOR REQUESTS.");
+    } catch (error) {
+        console.error('FATAL ERROR while initializing! The program will now exit.', error);
+        process.exit();
+    }
+}
