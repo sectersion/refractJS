@@ -23,7 +23,9 @@
   },
   "homepage": "https://github.com/sectersion/refractJS#readme",
   "dependencies": {
+    "body-parser": "^2.2.0",
     "express": "^5.1.0",
-    "mysql2": "^3.14.1"
+    "mysql2": "^3.14.1",
+    "ping": "^0.4.4"
   }
 }

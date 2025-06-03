@@ -8,8 +8,16 @@ const app = express();
 const readline = require('node:readline');
 const mysql = require('mysql2/promise');
 const port = 3000;
-//possible need for running commands later
 const { exec } = require('child_process');
+const { fork } = require('child_process');
+const ping = require('ping');
+
+//POST request support shit
+const bodyParser = require('body-parser');
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(express.json());
+app.use(express.urlencoded());
 
 //MySQL data
 let sql_host = 'localhost';
@@ -21,6 +29,8 @@ const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
 });
+
+let nodeupdater_daemon = null; //global node updater subprocess var (there's gotta be a better way to do this)
 
 //START PROGRAM
 main();
@@ -53,19 +63,48 @@ app.get('/', (req, res) => {
 });
 
 //ACCESS NODE REGISTRATION
-app.get('/register_node/access_node', (req, res) => {
+app.post('/register_node/access_node', async (req, res) => {
+    console.log(`A new access node is registering...`);
+    let pingTime = await pingNode(req.body.ip);
+    if (pingTime == false) {
+        res.type('json');
+        res.send({"temporary":"ping failure"});
+        console.log(`${req.body.ip} failed registration. ERROR: ping failure`);
+        return;
+    } else {
+        console.log(`${req.body.ip} was pinged at ${pingTime}ms.`);
+    }
+    const db_connection = await mysql.createConnection({
+        host: sql_host,
+        user: sql_user,
+        password: sql_password,
+        database: sql_database
+    });
+    console.log(`Adding ${req.body.ip} to the database...`);
+    const [rows, fields] = await db_connection.execute(`INSERT INTO nodes VALUES ('access', ${req.body.ip}, '', ping ${pingTime});`);
+    db_connection.end();
+    console.log(`${req.body.ip} has been added to the database successfully. Daemon refresh is in progress...`);
+    //ADD CODE FOR DOING DAEMON REFRESH
     res.type('json');
-    res.send({"temporary":"You have reached the point for registering an Access Node. This API is not ready."});
+    res.send({"temporary":"access node registration success"});
 });
 
 //UPLOAD NODE REGISTRATION
-app.get('/register_node/upload_node', (req, res) => {
+app.post('/register_node/upload_node', (req, res) => {
     res.type('json');
     res.send({"temporary":"You have reached the point for registering an Upload Node. This API is not ready."});
 });
 
 //currently the init sequence doesn't do anything but start the web server
 function initSequence() {
+    nodeupdater_daemon = fork('./nodeupdater_daemon.js');
+
+    nodeupdater_daemon.on('message', (message) => {
+        nodeupdater_daemon_messageHandler(message);
+    });
+
+    nodeupdater_daemon.send({ command: 'init_sequence' });
+    console.log("The Node Updater Daemon has been called to start. Beware of subprocess failures as they might not be caught by the main process and keep an eye out for the startup success message.");
     console.log("");
     app.listen(port, async () => {
         console.log(`Server listening at http://localhost:${port}`);
@@ -83,11 +122,20 @@ async function fullSetup() {
             database: sql_database
         });
 
-        console.log("Creating IPs table...");
+        console.log("Creating NODEs table...");
         //try to create the IPs table
-        const [rows, fields] = await db_connection.execute(`CREATE TABLE IPs (Something int);`);
+        const [rows, fields] = await db_connection.execute(`CREATE TABLE nodes (node_type TEXT, ip TEXT, history TEXT, ping INT);`);
         db_connection.end();
         console.log("Table created successfully.");
+
+        nodeupdater_daemon = fork('./nodeupdater_daemon.js');
+
+        nodeupdater_daemon.on('message', (message) => {
+            nodeupdater_daemon_messageHandler(message);
+        });
+
+        nodeupdater_daemon.send({ command: 'init_sequence' });
+        console.log("The Node Updater Daemon has been called to start. Beware of subprocess failures as they might not be caught by the main process and keep an eye out for the startup success message.");
         console.log("");
 
         app.listen(port, async () => {
@@ -97,5 +145,26 @@ async function fullSetup() {
     } catch (error) {
         console.error('FATAL ERROR while initializing! The program will now exit.', error);
         process.exit();
+    }
+}
+
+async function pingNode(ip) {
+    const pingRes = await ping.promise.probe(ip);
+    if (pingRes.alive) {
+        return pingRes.time;
+    } else {
+        return false;
+    }
+}
+
+function nodeupdater_daemon_messageHandler(message) {
+    switch (message.command) {
+        case "init_complete":
+            console.log(`The Node Updater Daemon has been started successfully. Any messages that start with "nodeupdater_daemon:" are messages from this subprocess.`);
+            break;
+        case "parser_failure":
+            console.log(`nodeupdater_daemon: ERROR! The subprocess' command handler could not parse the message sent by the main process!`);
+        default:
+            console.log(`nodeupdater_daemon: ERROR! The handler could not parse the command "${message.command}".`);
     }
 }
