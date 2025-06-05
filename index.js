@@ -205,7 +205,7 @@ function nodeupdater_daemon_messageHandler(message) {
             health.nodeupdater_daemon.status = message.status;
             break;
         case "node_killed_notice":
-            console.log(`nodeupdater_daemon: WARNING! The node "${message.ip}" has been killed after failing a health check twice. Access Nodes will be reassigned new Upload Nodes if the killed node was an Upload Node.`);
+            console.log(`nodeupdater_daemon: ERROR! The node "${message.ip}" has been killed after failing a health check twice. Access Nodes will be reassigned new Upload Nodes if the killed node was an Upload Node.`);
             break;
         case "report_error":
             console.log(`nodeupdater_daemon: ERROR! A generic error occurred with the following message: ${message.message}`);
