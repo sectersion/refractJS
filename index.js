@@ -102,8 +102,9 @@ app.post('/register_node/access_node', async (req, res) => {
         console.log(`Adding ${req.body.ip} to the database...`);
         const [rows, fields] = await db_connection.execute(`INSERT INTO nodes VALUES ('access', '${req.body.ip}', '', '${pingTime}', '{"assigned_uploadNode":"NULL"}');`);
         db_connection.end();
-        console.log(`${req.body.ip} has been added to the database successfully. Daemon refresh is in progress...`);
-        //ADD CODE FOR DOING DAEMON REFRESH
+        console.log(`${req.body.ip} has been added to the database successfully.`);
+        res.type('json');
+        res.send({"res_type":"success"});
     } catch (e) {
         console.error(`REGISTRATION FAILURE FOR ${req.body.ip}!`, e);
         res.type('json');
@@ -202,6 +203,12 @@ function nodeupdater_daemon_messageHandler(message) {
             break;
         case "health_report":
             health.nodeupdater_daemon.status = message.status;
+            break;
+        case "node_killed_notice":
+            console.log(`nodeupdater_daemon: WARNING! The node "${message.ip}" has been killed after failing a health check twice. Access Nodes will be reassigned new Upload Nodes if the killed node was an Upload Node.`);
+            break;
+        case "report_error":
+            console.log(`nodeupdater_daemon: ERROR! A generic error occurred with the following message: ${message.message}`);
             break;
         default:
             console.log(`nodeupdater_daemon: ERROR! The handler could not parse the command "${message.command}".`);
