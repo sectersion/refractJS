@@ -7,3 +7,5 @@ Using this software without explicit permission is a copyright violation, and is
 However, if you are an official developer here are some resources:
 
 **DOCS:** https://kitten-tech.gitbook.io/refractjs
+
+**INSTALLATION INSTRUCTIONS:** https://kitten-tech.gitbook.io/refractjs/basic-operations/installation-setup-instructions
