@@ -8,7 +8,14 @@ process.on('message', (message) => {
         case "init_sequence":
             process.send({ command: 'init_complete' });
             break;
+        case "health_update":
+            process.send({command: 'health_report', status: healthStatus()});
+            break;
         default:
-            process.send({ command: 'parser_failure' });
+            process.send({ command: 'parser_failure', failedCommand: message.command });
     }
 });
+
+function healthStatus() {
+    return 200;
+}

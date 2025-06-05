@@ -11,6 +11,7 @@ const port = 3000;
 const { exec } = require('child_process');
 const { fork } = require('child_process');
 const ping = require('ping');
+const path = require('path');
 
 //POST request support shit
 const bodyParser = require('body-parser');
@@ -20,10 +21,27 @@ app.use(express.json());
 app.use(express.urlencoded());
 
 //MySQL data
-let sql_host = 'localhost';
+let sql_host = '127.0.0.1'; //force IPv4 to prevent IPv6 errors with MySQL connection
 let sql_user = 'registry_user';
 let sql_password = 'password';
 let sql_database = 'registry';
+
+//subprocess health
+let health = {
+    nodeupdater_daemon: {
+        status: "000",
+        update: function() {
+            nodeupdater_daemon.send({ command: 'health_update' });
+            setTimeout(() => {
+                if (health.nodeupdater_daemon.status != 200) {
+                    return false;
+                } else {
+                    return true;
+                }
+            }, 1000);
+        }
+    }
+};
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -99,9 +117,8 @@ app.post('/register_node/upload_node', (req, res) => {
     res.send({"temporary":"You have reached the point for registering an Upload Node. This API is not ready."});
 });
 
-//currently the init sequence doesn't do anything but start the web server
 function initSequence() {
-    nodeupdater_daemon = fork('./nodeupdater_daemon.js');
+    nodeupdater_daemon = fork(path.join(__dirname, './nodeupdater_daemon.js'));
 
     nodeupdater_daemon.on('message', (message) => {
         nodeupdater_daemon_messageHandler(message);
@@ -114,6 +131,8 @@ function initSequence() {
 
     nodeupdater_daemon.send({ command: 'init_sequence' });
     console.log("The Node Updater Daemon has been called to start. Beware of subprocess failures as they might not be caught by the main process and keep an eye out for the startup success message.");
+    setInterval(checkAllSubprocessHealth, 30000);
+    console.log("Subprocess health checking has been enabled.");
     console.log("");
     app.listen(port, async () => {
         console.log(`Server listening at http://localhost:${port}`);
@@ -137,7 +156,7 @@ async function fullSetup() {
         db_connection.end();
         console.log("Table created successfully.");
 
-        nodeupdater_daemon = fork('./nodeupdater_daemon.js');
+        nodeupdater_daemon = fork(path.join(__dirname, './nodeupdater_daemon.js'));
 
         nodeupdater_daemon.on('message', (message) => {
             nodeupdater_daemon_messageHandler(message);
@@ -150,6 +169,8 @@ async function fullSetup() {
 
         nodeupdater_daemon.send({ command: 'init_sequence' });
         console.log("The Node Updater Daemon has been called to start. Beware of subprocess failures as they might not be caught by the main process and keep an eye out for the startup success message.");
+        setInterval(checkAllSubprocessHealth, 30000);
+        console.log("Subprocess health checking has been enabled.");
         console.log("");
 
         app.listen(port, async () => {
@@ -177,8 +198,20 @@ function nodeupdater_daemon_messageHandler(message) {
             console.log(`The Node Updater Daemon has been started successfully. Any messages that start with "nodeupdater_daemon:" are messages from this subprocess.`);
             break;
         case "parser_failure":
-            console.log(`nodeupdater_daemon: ERROR! The subprocess' command handler could not parse the message sent by the main process!`);
+            console.log(`nodeupdater_daemon: ERROR! The subprocess' command handler could not parse the message sent by the main process! Command: ${message.failedCommand}`)
+            break;
+        case "health_report":
+            health.nodeupdater_daemon.status = message.status;
+            break;
         default:
             console.log(`nodeupdater_daemon: ERROR! The handler could not parse the command "${message.command}".`);
+    }
+}
+
+async function checkAllSubprocessHealth() {
+    if (await health.nodeupdater_daemon.update() == false) {
+        console.log(`nodeupdater_daemon: ERROR! This subprocess currently has the error code ${health.nodeupdater_daemon.status}. Subprocess error codes indicate serious problems.`);
+    } else {
+        console.log(`nodeupdater_daemon: Status 200 (alive)`);
     }
 }
