@@ -65,28 +65,32 @@ app.get('/', (req, res) => {
 //ACCESS NODE REGISTRATION
 app.post('/register_node/access_node', async (req, res) => {
     console.log(`A new access node is registering...`);
-    let pingTime = await pingNode(req.body.ip);
-    if (pingTime == false) {
+    try {
+        let pingTime = await pingNode(req.body.ip);
+        if (pingTime == false) {
+            res.type('json');
+            res.send({"temporary":"ping failure"});
+            console.log(`${req.body.ip} failed registration. ERROR: ping failure`);
+            return;
+        } else {
+            console.log(`${req.body.ip} was pinged at ${pingTime}ms.`);
+        }
+        const db_connection = await mysql.createConnection({
+            host: sql_host,
+            user: sql_user,
+            password: sql_password,
+            database: sql_database
+        });
+        console.log(`Adding ${req.body.ip} to the database...`);
+        const [rows, fields] = await db_connection.execute(`INSERT INTO nodes VALUES ('access', '${req.body.ip}', '', '${pingTime}', '{"assigned_uploadNode":"NULL"}');`);
+        db_connection.end();
+        console.log(`${req.body.ip} has been added to the database successfully. Daemon refresh is in progress...`);
+        //ADD CODE FOR DOING DAEMON REFRESH
+    } catch (e) {
+        console.error(`REGISTRATION FAILURE FOR ${req.body.ip}!`, e);
         res.type('json');
-        res.send({"temporary":"ping failure"});
-        console.log(`${req.body.ip} failed registration. ERROR: ping failure`);
-        return;
-    } else {
-        console.log(`${req.body.ip} was pinged at ${pingTime}ms.`);
+        res.send({"res_type":"error", "lethal":"false", "code":"2", "message":"Failure to register Access Node. Contact support if the issue persists."});
     }
-    const db_connection = await mysql.createConnection({
-        host: sql_host,
-        user: sql_user,
-        password: sql_password,
-        database: sql_database
-    });
-    console.log(`Adding ${req.body.ip} to the database...`);
-    const [rows, fields] = await db_connection.execute(`INSERT INTO nodes VALUES ('access', ${req.body.ip}, '', ping ${pingTime});`);
-    db_connection.end();
-    console.log(`${req.body.ip} has been added to the database successfully. Daemon refresh is in progress...`);
-    //ADD CODE FOR DOING DAEMON REFRESH
-    res.type('json');
-    res.send({"temporary":"access node registration success"});
 });
 
 //UPLOAD NODE REGISTRATION
@@ -101,6 +105,11 @@ function initSequence() {
 
     nodeupdater_daemon.on('message', (message) => {
         nodeupdater_daemon_messageHandler(message);
+    });
+
+    nodeupdater_daemon.on('disconnect', () => {
+        console.log('nodeupdater_daemon: FATAL ERROR! The IPC channel has closed for this subprocess. The main thread will now be killed to prevent request corruption.');
+        process.exit();
     });
 
     nodeupdater_daemon.send({ command: 'init_sequence' });
@@ -124,7 +133,7 @@ async function fullSetup() {
 
         console.log("Creating NODEs table...");
         //try to create the IPs table
-        const [rows, fields] = await db_connection.execute(`CREATE TABLE nodes (node_type TEXT, ip TEXT, history TEXT, ping INT);`);
+        const [rows, fields] = await db_connection.execute(`CREATE TABLE nodes (node_type TEXT, ip TEXT, history TEXT, ping TEXT, misc TEXT);`);
         db_connection.end();
         console.log("Table created successfully.");
 
@@ -132,6 +141,11 @@ async function fullSetup() {
 
         nodeupdater_daemon.on('message', (message) => {
             nodeupdater_daemon_messageHandler(message);
+        });
+
+        nodeupdater_daemon.on('disconnect', () => {
+            console.log('nodeupdater_daemon: FATAL ERROR! The IPC channel has closed for this subprocess. The main thread will now be killed to prevent request corruption.');
+            process.exit();
         });
 
         nodeupdater_daemon.send({ command: 'init_sequence' });
